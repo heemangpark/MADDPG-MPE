@@ -159,25 +159,24 @@ class MADDPG:
 
     def save(self, epi):
         if self.type == 'ag':
-            th.save([actors.state_dict() for actors in self.actors], 'ag_actor_{}.pt'.format(epi))
-            th.save([critics.state_dict() for critics in self.critics], 'ag_critic_{}.pt'.format(epi))
-            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'ag_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'ag_c_optim_{}.pt'.format(epi))
+            th.save([actors.state_dict() for actors in self.actors], 'models/ag_actor_{}.pt'.format(epi))
+            th.save([critics.state_dict() for critics in self.critics], 'models/ag_critic_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/ag_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/ag_c_optim_{}.pt'.format(epi))
         elif self.type == 'adv':
-            if self.type == 'ag':
-                th.save([actors.state_dict() for actors in self.actors], 'adv_actor_{}.pt'.format(epi))
-                th.save([critics.state_dict() for critics in self.critics], 'adv_critic_{}.pt'.format(epi))
-                th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'adv_a_optim_{}.pt'.format(epi))
-                th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'adv_optim_{}.pt'.format(epi))
+            th.save([actors.state_dict() for actors in self.actors], 'models/adv_actor_{}.pt'.format(epi))
+            th.save([critics.state_dict() for critics in self.critics], 'models/adv_critic_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/adv_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/adv_optim_{}.pt'.format(epi))
 
     def load(self, epi):
         if self.type == 'ag':
-            self.actors = th.load('ag_actor_{}.pt'.format(epi))
-            self.critics = th.load('ag_critic_{}.pt'.format(epi))
-            self.actor_optimizer = th.load('ag_a_optim_{}.pt'.format(epi))
-            self.critic_optimizer = th.load('ag_c_optim_{}.pt'.format(epi))
+            self.actors = th.load('models/ag_actor_{}.pt'.format(epi))
+            self.critics = th.load('models/ag_critic_{}.pt'.format(epi))
+            self.actor_optimizer = th.load('models/ag_a_optim_{}.pt'.format(epi))
+            self.critic_optimizer = th.load('models/ag_c_optim_{}.pt'.format(epi))
         elif self.type == 'adv':
-            self.actors = th.load('adv_actor_{}.pt'.format(epi))
-            self.critics = th.load('adv_critic_{}.pt'.format(epi))
-            self.actor_optimizer = th.load('adv_a_optim_{}.pt'.format(epi))
-            self.critic_optimizer = th.load('adv_c_optim_{}.pt'.format(epi))
+            self.actors = th.load('models/adv_actor_{}.pt'.format(epi))
+            self.critics = th.load('models/adv_critic_{}.pt'.format(epi))
+            self.actor_optimizer = th.load('models/adv_a_optim_{}.pt'.format(epi))
+            self.critic_optimizer = th.load('models/adv_c_optim_{}.pt'.format(epi))
