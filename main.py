@@ -27,13 +27,12 @@ maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_b
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
-w_plot = False
+w_plot = True
 if w_plot:
     wandb.init()
 
 for i_episode in range(n_episode):
     obs = world_mpe.reset()
-    world_mpe.render(obs)
     obs = np.stack(obs)
     if isinstance(obs, np.ndarray):
         obs = th.from_numpy(obs).float()
