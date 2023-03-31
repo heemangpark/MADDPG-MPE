@@ -1,33 +1,29 @@
-from model import Critic, Actor
-import torch as th
 from copy import deepcopy
-from memory import ReplayMemory, Experience
-from torch.optim import Adam
-from randomProcess import OrnsteinUhlenbeckProcess
-import torch.nn as nn
+
 import numpy as np
+import torch as th
+import torch.nn as nn
+from torch.optim import Adam
+
+from memory import ReplayMemory, Experience
+from model import Critic, Actor
 from params import scale_reward
 
 
 def soft_update(target, source, t):
-    for target_param, source_param in zip(target.parameters(),
-                                          source.parameters()):
-        target_param.data.copy_(
-            (1 - t) * target_param.data + t * source_param.data)
+    for target_param, source_param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_((1 - t) * target_param.data + t * source_param.data)
 
 
 def hard_update(target, source):
-    for target_param, source_param in zip(target.parameters(),
-                                          source.parameters()):
+    for target_param, source_param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(source_param.data)
 
 
 class MADDPG:
-    def __init__(self, n_agents, dim_obs, dim_act, batch_size,
-                 capacity, episodes_before_train):
+    def __init__(self, n_agents, dim_obs, dim_act, batch_size, capacity, episodes_before_train, type):
         self.actors = [Actor(dim_obs, dim_act) for i in range(n_agents)]
-        self.critics = [Critic(n_agents, dim_obs,
-                               dim_act) for i in range(n_agents)]
+        self.critics = [Critic(n_agents, dim_obs, dim_act) for i in range(n_agents)]
         self.actors_target = deepcopy(self.actors)
         self.critics_target = deepcopy(self.critics)
 
@@ -43,10 +39,10 @@ class MADDPG:
         self.tau = 0.01
 
         self.var = [1.0 for i in range(n_agents)]
-        self.critic_optimizer = [Adam(x.parameters(),
-                                      lr=0.001) for x in self.critics]
-        self.actor_optimizer = [Adam(x.parameters(),
-                                     lr=0.0001) for x in self.actors]
+        self.critic_optimizer = [Adam(x.parameters(), lr=0.001) for x in self.critics]
+        self.actor_optimizer = [Adam(x.parameters(), lr=0.0001) for x in self.actors]
+
+        self.type = type
 
         if self.use_cuda:
             for x in self.actors:
@@ -93,9 +89,9 @@ class MADDPG:
 
             non_final_next_actions = [
                 self.actors_target[i](non_final_next_states[:,
-                                                            i,
-                                                            :]) for i in range(
-                                                                self.n_agents)]
+                                      i,
+                                      :]) for i in range(
+                    self.n_agents)]
             non_final_next_actions = th.stack(non_final_next_actions)
             non_final_next_actions = (
                 non_final_next_actions.transpose(0,
@@ -112,7 +108,7 @@ class MADDPG:
             # scale_reward: to scale reward in Q functions
 
             target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (
-                reward_batch[:, agent].unsqueeze(1) * scale_reward)
+                    reward_batch[:, agent].unsqueeze(1) * scale_reward)
 
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             loss_Q.backward()
@@ -151,8 +147,8 @@ class MADDPG:
             act += th.from_numpy(
                 np.random.randn(2) * self.var[i]).type(FloatTensor)
 
-            if self.episode_done > self.episodes_before_train and\
-               self.var[i] > 0.05:
+            if self.episode_done > self.episodes_before_train and \
+                    self.var[i] > 0.05:
                 self.var[i] *= 0.999998
             act = th.clamp(act, -1.0, 1.0)
 
@@ -160,3 +156,28 @@ class MADDPG:
         self.steps_done += 1
 
         return actions
+
+    def save(self, epi):
+        if self.type == 'ag':
+            th.save([actors.state_dict() for actors in self.actors], 'ag_actor_{}.pt'.format(epi))
+            th.save([critics.state_dict() for critics in self.critics], 'ag_critic_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'ag_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'ag_c_optim_{}.pt'.format(epi))
+        elif self.type == 'adv':
+            if self.type == 'ag':
+                th.save([actors.state_dict() for actors in self.actors], 'adv_actor_{}.pt'.format(epi))
+                th.save([critics.state_dict() for critics in self.critics], 'adv_critic_{}.pt'.format(epi))
+                th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'adv_a_optim_{}.pt'.format(epi))
+                th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'adv_optim_{}.pt'.format(epi))
+
+    def load(self, epi):
+        if self.type == 'ag':
+            self.actors = th.load('ag_actor_{}.pt'.format(epi))
+            self.critics = th.load('ag_critic_{}.pt'.format(epi))
+            self.actor_optimizer = th.load('ag_a_optim_{}.pt'.format(epi))
+            self.critic_optimizer = th.load('ag_c_optim_{}.pt'.format(epi))
+        elif self.type == 'adv':
+            self.actors = th.load('adv_actor_{}.pt'.format(epi))
+            self.critics = th.load('adv_critic_{}.pt'.format(epi))
+            self.actor_optimizer = th.load('adv_a_optim_{}.pt'.format(epi))
+            self.critic_optimizer = th.load('adv_c_optim_{}.pt'.format(epi))

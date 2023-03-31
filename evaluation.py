@@ -1,4 +1,4 @@
-import pickle
+import time
 
 import numpy as np
 import torch as th
@@ -23,8 +23,14 @@ n_episode = 20000
 max_steps = 50
 episodes_before_train = 100
 
-maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train)
-maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train)
+# with open('models/ag_13000.pkl', 'rb') as f:
+#     maddpg_ag = pickle.load(f)
+# with open('models/adv_13000.pkl', 'rb') as f:
+#     maddpg_adv = pickle.load(f)
+
+maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
+maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
+maddpg_ag.load(''), maddpg_adv.load('')
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
@@ -41,6 +47,7 @@ for i_episode in range(n_episode):
         action_tot = th.cat([action_ag, action_adv], dim=0)
         obs_, reward, done, _ = world_mpe.step(action_tot.numpy())
         world_mpe.render(obs_)
+        time.sleep(.1)
 
         obs_ = np.stack(obs_)
         obs_ = th.from_numpy(obs_).float()

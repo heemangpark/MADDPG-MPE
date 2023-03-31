@@ -1,27 +1,12 @@
-import pickle
-
 import numpy as np
 import torch as th
-
 import wandb
+
 from MADDPG import MADDPG
 from madrl_environments.multiagent.make_env import make_env
 
-# import visdom
-
-# do not render the scene
-# wandb.init()
-e_render = False
-
-food_reward = 10.
-poison_reward = -1.
-encounter_reward = 0.01
-n_coop = 2
-
 world_mpe = make_env('simple_tag')
 world_mpe.discrete_action_space = False
-# vis = visdom.Visdom(port=5274)
-reward_record = []
 
 np.random.seed(1234)
 th.manual_seed(1234)
@@ -37,15 +22,16 @@ n_episode = 20000
 max_steps = 50
 episodes_before_train = 100
 
-win = None
-param = None
-
-maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train)
-maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train)
+maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
+maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
+
+w_plot = False
+if w_plot:
+    wandb.init()
+
 for i_episode in range(n_episode):
-    # obs = world.reset()
     obs = world_mpe.reset()
     world_mpe.render(obs)
     obs = np.stack(obs)
@@ -56,9 +42,6 @@ for i_episode in range(n_episode):
     adv_rwd = 0
 
     for t in range(max_steps):
-        # render every 100 episodes to speed up training
-        # if i_episode % 100 == 0 and e_render:
-        #     world.render()
         obs = obs.type(FloatTensor)
         action_ag = maddpg_ag.select_action(obs[:n_ag]).data.cpu()
         action_adv = maddpg_adv.select_action(obs[n_ag:]).data.cpu()
@@ -87,63 +70,10 @@ for i_episode in range(n_episode):
         critic_loss_ag, actor_loss_ag = maddpg_ag.update_policy()
         critic_loss_adv, actor_loss_adv = maddpg_adv.update_policy()
 
-    maddpg_ag.episode_done += 1
-    maddpg_adv.episode_done += 1
-
-    wandb.log({'action_ag': ag_rwd,
-               'action_adv': adv_rwd})
+    if w_plot:
+        wandb.log({'action_ag': ag_rwd, 'action_adv': adv_rwd})
 
     if (i_episode + 1) % 1000 == 0:
-        with open('ag_{}.pkl'.format(i_episode + 1), 'wb') as f:
-            pickle.dump(maddpg_ag, f)
-        with open('adv_{}.pkl'.format(i_episode + 1), 'wb') as f:
-            pickle.dump(maddpg_adv, f)
-
-    # print('Episode: %d, reward = %f' % (i_episode, total_reward))
-    # print('Episode: %d, reward_ag = %f, reward_adv = %f' % (i_episode, ag_rwd, adv_rwd))
-    # reward_record.append(total_reward)
-
-    # if maddpg_ag.episode_done == maddpg_ag.episodes_before_train:
-    #     print('training now begins...')
-    #     print('scale_reward=%f\n' % scale_reward +
-    #           'ag_reward: {}, adv_rwd: {}'.format(ag_rwd, adv_rwd))
-
-    # if win is None:
-    #     # win = vis.line(X=np.arange(i_episode, i_episode+1),
-    #     #                Y=np.array([
-    #     #                    np.append(total_reward, rr)]),
-    #     #                opts=dict(
-    #     #                    ylabel='Reward',
-    #     #                    xlabel='Episode',
-    #     #                    title='MADDPG on WaterWorld_mod\n' +
-    #     #                    'agent=%d' % n_agents +
-    #     #                    ', coop=%d' % n_coop +
-    #     #                    ', sensor_range=0.2\n' +
-    #     #                    'food=%f, poison=%f, encounter=%f' % (
-    #     #                        food_reward,
-    #     #                        poison_reward,
-    #     #                        encounter_reward),
-    #     #                    legend=['Total'] +
-    #     #                    ['Agent-%d' % i for i in range(n_agents)]))
-    # else:
-    #     vis.line(X=np.array(
-    #         [np.array(i_episode).repeat(n_agents+1)]),
-    #              Y=np.array([np.append(total_reward,
-    #                                    rr)]),
-    #              win=win,
-    #              update='append')
-    # if param is None:
-    #     param = vis.line(X=np.arange(i_episode, i_episode+1),
-    #                      Y=np.array([maddpg.var[0]]),
-    #                      opts=dict(
-    #                          ylabel='Var',
-    #                          xlabel='Episode',
-    #                          title='MADDPG on WaterWorld: Exploration',
-    #                          legend=['Variance']))
-    # else:
-    #     vis.line(X=np.array([i_episode]),
-    #              Y=np.array([maddpg.var[0]]),
-    #              win=param,
-    #              update='append')
+        maddpg_ag.save(i_episode + 1), maddpg_adv.save(i_episode + 1)
 
 world_mpe.close()

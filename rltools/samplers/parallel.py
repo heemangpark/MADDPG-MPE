@@ -6,17 +6,17 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import cpu_count
 
 import numpy as np
 import tensorflow as tf
 import zerorpc
 from gevent import Timeout
+from six.moves import cPickle
 from zerorpc.gevent_zmq import logger as gevent_log
-from multiprocessing import cpu_count
 
 from rltools.samplers import Sampler, decrollout, centrollout, concrollout
 from rltools.trajutil import TrajBatch, Trajectory
-from six.moves import cPickle
 
 gevent_log.setLevel(logging.CRITICAL)
 
@@ -42,7 +42,7 @@ class ParallelSampler(Sampler):
         proxies = [RolloutProxy(self.algo.env,
                                 self.algo.policies if self.mode == 'concurrent' else self.algo.policy,
                                 self.max_traj_len,
-                                self.mode, i,sidx)
+                                self.mode, i, sidx)
                    for i in range(self.n_workers)]
         # yapf: enable
         return proxies
@@ -56,7 +56,7 @@ class ParallelSampler(Sampler):
             state_str = _dumps([policy.get_state() for policy in self.algo.policies])
         else:
             state_str = _dumps(self.algo.policy.get_state())
-        [worker.client("set_state", state_str, async=True) for worker in self.workers]
+        [worker.client("set_state", state_str, async = True) for worker in self.workers]
 
         self.seed_idx2 = self.seed_idx
         timesteps_sofar = 0
@@ -66,7 +66,7 @@ class ParallelSampler(Sampler):
         def assign_job_to(i_worker):
             worker2job[i_worker] = (self.seed_idx2, self.workers[i_worker].client("sample",
                                                                                   self.seed_idx2,
-                                                                                  async=True))
+                                    async=True))
             self.seed_idx2 += 1
 
         # Start jobs
@@ -137,31 +137,31 @@ class ParallelSampler(Sampler):
                  ('n_episodes', self.n_episodes, int),  # total number of episodes                 
                  ('avglen',
                   int(np.mean([len(traj) for traj in trajbatch for trajbatch in trajbatches])), int
-                 ),
+                  ),
                  ('maxlen',
                   int(np.max([len(traj) for traj in trajbatch for trajbatch in trajbatches])), int
-                 ),  # max traj length
+                  ),  # max traj length
                  ('minlen',
                   int(np.min([len(traj) for traj in trajbatch for trajbatch in trajbatches])), int
-                 ),  # min traj length
+                  ),  # min traj length
                  ('ravg', np.mean([trajbatch.r.stacked.mean() for trajbatch in trajbatches]), float)
-                ] + [(info[0], np.mean(info[1]), float) for info in trajbatches[0].info])
+                 ] + [(info[0], np.mean(info[1]), float) for info in trajbatches[0].info])
         else:
             trajbatch = TrajBatch.FromTrajs(trajs)
             self.n_episodes += len(trajbatch)
             return (
                 trajbatch,
                 [('ret', trajbatch.r.padded(fill=0.).sum(axis=1).mean(), float
-                 ),  # average return for batch of traj
+                  ),  # average return for batch of traj
                  ('batch', len(trajbatch), int),  # batch size
                  ('n_episodes', self.n_episodes, int),  # total number of episodes
                  ('avglen', int(np.mean([len(traj) for traj in trajbatch])), int
-                 ),  # average traj length
+                  ),  # average traj length
                  ('maxlen', int(np.max([len(traj) for traj in trajbatch])), int),  # max traj length
                  ('minlen', int(np.min([len(traj) for traj in trajbatch])), int),  # min traj length
                  ('ravg', trajbatch.r.stacked.mean(), float
-                 )  # avg reward encountered per time step (probably not that useful)
-                ] + [(info[0], np.mean(info[1]), float) for info in trajbatch.info])
+                  )  # avg reward encountered per time step (probably not that useful)
+                 ] + [(info[0], np.mean(info[1]), float) for info in trajbatch.info])
 
 
 class RolloutProxy(object):
