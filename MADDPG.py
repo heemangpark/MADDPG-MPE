@@ -167,16 +167,28 @@ class MADDPG:
             th.save([actors.state_dict() for actors in self.actors], 'models/adv_actor_{}.pt'.format(epi))
             th.save([critics.state_dict() for critics in self.critics], 'models/adv_critic_{}.pt'.format(epi))
             th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/adv_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/adv_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/adv_c_optim_{}.pt'.format(epi))
 
     def load(self, epi):
         if self.type == 'ag':
-            self.actors = th.load('models/ag_actor_{}.pt'.format(epi))
-            self.critics = th.load('models/ag_critic_{}.pt'.format(epi))
-            self.actor_optimizer = th.load('models/ag_a_optim_{}.pt'.format(epi))
-            self.critic_optimizer = th.load('models/ag_c_optim_{}.pt'.format(epi))
+            for ag_a, model in zip(self.actors, th.load('models/ag_actor_{}.pt'.format(epi))):
+                ag_a.load_state_dict(model)
+                ag_a.eval()
+            for ag_c, model in zip(self.critics, th.load('models/ag_critic_{}.pt'.format(epi))):
+                ag_c.load_state_dict(model)
+                ag_c.eval()
+            for ag_a_optim, model in zip(self.actor_optimizer, th.load('models/ag_a_optim_{}.pt'.format(epi))):
+                ag_a_optim.load_state_dict(model)
+            for ag_c_optim, model in zip(self.critic_optimizer, th.load('models/ag_c_optim_{}.pt'.format(epi))):
+                ag_c_optim.load_state_dict(model)
         elif self.type == 'adv':
-            self.actors = th.load('models/adv_actor_{}.pt'.format(epi))
-            self.critics = th.load('models/adv_critic_{}.pt'.format(epi))
-            self.actor_optimizer = th.load('models/adv_a_optim_{}.pt'.format(epi))
-            self.critic_optimizer = th.load('models/adv_c_optim_{}.pt'.format(epi))
+            for adv_a, model in zip(self.actors, th.load('models/adv_actor_{}.pt'.format(epi))):
+                adv_a.load_state_dict(model)
+                adv_a.eval()
+            for adv_c, model in zip(self.critics, th.load('models/adv_critic_{}.pt'.format(epi))):
+                adv_c.load_state_dict(model)
+                adv_c.eval()
+            for adv_a_optim, model in zip(self.actor_optimizer, th.load('models/adv_a_optim_{}.pt'.format(epi))):
+                adv_a_optim.load_state_dict(model)
+            for adv_c_optim, model in zip(self.critic_optimizer, th.load('models/adv_c_optim_{}.pt'.format(epi))):
+                adv_c_optim.load_state_dict(model)
