@@ -15,15 +15,16 @@ n_ag = 2
 n_adv = 4
 n_states = 28
 n_actions = 2
-capacity = 1000000
+capacity = 1_000_000
 batch_size = 1000
 
-n_episode = 20000
+n_episode = 100_000
 max_steps = 50
 episodes_before_train = 100
 
 maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
 maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
+maddpg_ag.load(20000), maddpg_adv.load(20000)
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
