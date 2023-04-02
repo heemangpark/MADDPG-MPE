@@ -23,11 +23,6 @@ n_episode = 20000
 max_steps = 50
 episodes_before_train = 100
 
-# with open('models/ag_13000.pkl', 'rb') as f:
-#     maddpg_ag = pickle.load(f)
-# with open('models/adv_13000.pkl', 'rb') as f:
-#     maddpg_adv = pickle.load(f)
-
 maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
 maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
 maddpg_ag.load(''), maddpg_adv.load('')
