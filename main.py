@@ -8,8 +8,8 @@ from madrl_environments.multiagent.make_env import make_env
 world_mpe = make_env('simple_tag')
 world_mpe.discrete_action_space = False
 
-np.random.seed(1234)
-th.manual_seed(1234)
+np.random.seed(42)
+th.manual_seed(42)
 
 n_ag = 2
 n_adv = 4
