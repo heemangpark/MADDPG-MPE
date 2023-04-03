@@ -71,14 +71,16 @@ for i_episode in range(n_episode):
         maddpg_adv.memory.push(obs[n_ag:].data, action_adv, next_obs_adv, reward[n_ag:])
         obs = next_obs
 
-        _, _ = maddpg_ag.update_policy()
-        _, _ = maddpg_adv.update_policy()
+        ag_c_loss, ag_a_loss = maddpg_ag.update_policy()
+        adv_c_loss, adv_a_loss = maddpg_adv.update_policy()
 
     maddpg_ag.episode_done += 1
     maddpg_adv.episode_done += 1
 
     if w_plot:
-        wandb.log({'action_ag': ag_rwd, 'action_adv': adv_rwd})
+        wandb.log({'good reward': ag_rwd, 'adversary reward': adv_rwd,
+                   'good critic loss': np.mean(ag_c_loss), 'good actor loss': np.mean(ag_a_loss),
+                   'adv critic loss': np.mean(adv_c_loss), 'adv actor loss': np.mean(adv_a_loss)})
 
     if (i_episode + 1) % 2000 == 0:
         maddpg_ag.save(i_episode + 1), maddpg_adv.save(i_episode + 1)

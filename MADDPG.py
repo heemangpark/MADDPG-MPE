@@ -24,7 +24,7 @@ class MADDPG:
     def __init__(self, n_agents, dim_obs, dim_act, batch_size, capacity, episodes_before_train, type, discrete=False):
         self.discrete = discrete
         self.actors = [Actor(dim_obs, dim_act, self.discrete) for i in range(n_agents)]
-        self.critics = [Critic(n_agents, dim_obs, dim_act) for i in range(n_agents)]
+        self.critics = [Critic(n_agents, dim_obs, dim_act, self.discrete) for i in range(n_agents)]
         self.actors_target = deepcopy(self.actors)
         self.critics_target = deepcopy(self.critics)
 
@@ -65,51 +65,52 @@ class MADDPG:
 
         ByteTensor = th.cuda.ByteTensor if self.use_cuda else th.ByteTensor
         FloatTensor = th.cuda.FloatTensor if self.use_cuda else th.FloatTensor
+        LongTensor = th.cuda.LongTensor if self.use_cuda else th.LongTensor
 
         c_loss = []
         a_loss = []
         for agent in range(self.n_agents):
             transitions = self.memory.sample(self.batch_size)
             batch = Experience(*zip(*transitions))
-            non_final_mask = ByteTensor(list(map(lambda s: s is not None,
-                                                 batch.next_states)))
+            non_final_mask = ByteTensor(list(map(lambda s: s is not None, batch.next_states)))
             # state_batch: batch_size x n_agents x dim_obs
             state_batch = th.stack(batch.states).type(FloatTensor)
             action_batch = th.stack(batch.actions).type(FloatTensor)
             reward_batch = th.stack(batch.rewards).type(FloatTensor)
             # : (batch_size_non_final) x n_agents x dim_obs
-            non_final_next_states = th.stack(
-                [s for s in batch.next_states
-                 if s is not None]).type(FloatTensor)
+            non_final_next_states = th.stack([s for s in batch.next_states if s is not None]).type(FloatTensor)
 
             # for current agent
             whole_state = state_batch.view(self.batch_size, -1)
             whole_action = action_batch.view(self.batch_size, -1)
+
             self.critic_optimizer[agent].zero_grad()
-            current_Q = self.critics[agent](whole_state, whole_action)
+            if self.discrete:
+                current_Q = self.critics[agent](whole_state, th.eye(4)[whole_action.type(LongTensor)].type(LongTensor))
+            else:
+                current_Q = self.critics[agent](whole_state, whole_action)
 
-            non_final_next_actions = [
-                self.actors_target[i](non_final_next_states[:,
-                                      i,
-                                      :]) for i in range(
-                    self.n_agents)]
-            non_final_next_actions = th.stack(non_final_next_actions)
-            non_final_next_actions = (
-                non_final_next_actions.transpose(0,
-                                                 1).contiguous())
+            if self.discrete:
+                non_final_next_actions = [
+                    th.eye(self.n_actions)[self.actors_target[i](non_final_next_states[:, i, :])].type(LongTensor) for i
+                    in range(self.n_agents)]
+                non_final_next_actions = th.stack(non_final_next_actions)
+                non_final_next_actions = (non_final_next_actions.transpose(0, 1).contiguous())
+            else:
+                non_final_next_actions = [self.actors_target[i](non_final_next_states[:, i, :])
+                                          for i in range(self.n_agents)]
+                non_final_next_actions = th.stack(non_final_next_actions)
+                non_final_next_actions = (non_final_next_actions.transpose(0, 1).contiguous())
 
-            target_Q = th.zeros(
-                self.batch_size).type(FloatTensor)
+            target_Q = th.zeros(self.batch_size).type(FloatTensor)
 
             target_Q[non_final_mask] = self.critics_target[agent](
                 non_final_next_states.view(-1, self.n_agents * self.n_states),
-                non_final_next_actions.view(-1,
-                                            self.n_agents * self.n_actions)
-            ).squeeze()
+                non_final_next_actions.view(-1, self.n_agents * self.n_actions)).squeeze()
+
             # scale_reward: to scale reward in Q functions
 
-            target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (
-                    reward_batch[:, agent].unsqueeze(1) * scale_reward)
+            target_Q = (target_Q.unsqueeze(1) * self.GAMMA) + (reward_batch[:, agent].unsqueeze(1) * scale_reward)
 
             loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
             loss_Q.backward()
@@ -119,8 +120,12 @@ class MADDPG:
             state_i = state_batch[:, agent, :]
             action_i = self.actors[agent](state_i)
             ac = action_batch.clone()
-            ac[:, agent, :] = action_i
-            whole_action = ac.view(self.batch_size, -1)
+            if self.discrete:
+                ac[:, agent] = action_i
+                whole_action = th.eye(self.n_actions)[ac.type(LongTensor)].type(LongTensor)
+            else:
+                ac[:, agent, :] = action_i
+                whole_action = ac.view(self.batch_size, -1)
             actor_loss = -self.critics[agent](whole_state, whole_action)
             actor_loss = actor_loss.mean()
             actor_loss.backward()
@@ -138,22 +143,15 @@ class MADDPG:
     def select_action(self, state_batch):
         if not self.discrete:
             # state_batch: n_agents x state_dim
-            actions = th.zeros(
-                self.n_agents,
-                self.n_actions)
+            actions = th.zeros(self.n_agents, self.n_actions)
             FloatTensor = th.cuda.FloatTensor if self.use_cuda else th.FloatTensor
             for i in range(self.n_agents):
                 sb = state_batch[i, :].detach()
                 act = self.actors[i](sb.unsqueeze(0)).squeeze()
-
-                act += th.from_numpy(
-                    np.random.randn(2) * self.var[i]).type(FloatTensor)
-
-                if self.episode_done > self.episodes_before_train and \
-                        self.var[i] > 0.05:
+                act += th.from_numpy(np.random.randn(2) * self.var[i]).type(FloatTensor)
+                if self.episode_done > self.episodes_before_train and self.var[i] > 0.05:
                     self.var[i] *= 0.999998
                 act = th.clamp(act, -1.0, 1.0)
-
                 actions[i, :] = act
             self.steps_done += 1
 
@@ -164,7 +162,7 @@ class MADDPG:
             for i in range(self.n_agents):
                 sb = state_batch[i, :].detach()
                 act = self.actors[i](sb.unsqueeze(0))
-                actions[i] = act
+                actions[i] = act.item()
             self.steps_done += 1
 
             return actions
@@ -173,13 +171,17 @@ class MADDPG:
         if self.type == 'ag':
             th.save([actors.state_dict() for actors in self.actors], 'models/discrete/ag_actor_{}.pt'.format(epi))
             th.save([critics.state_dict() for critics in self.critics], 'models/discrete/ag_critic_{}.pt'.format(epi))
-            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/discrete/ag_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/discrete/ag_c_optim_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer],
+                    'models/discrete/ag_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer],
+                    'models/discrete/ag_c_optim_{}.pt'.format(epi))
         elif self.type == 'adv':
             th.save([actors.state_dict() for actors in self.actors], 'models/discrete/adv_actor_{}.pt'.format(epi))
             th.save([critics.state_dict() for critics in self.critics], 'models/discrete/adv_critic_{}.pt'.format(epi))
-            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/discrete/adv_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/discrete/adv_c_optim_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer],
+                    'models/discrete/adv_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer],
+                    'models/discrete/adv_c_optim_{}.pt'.format(epi))
 
     def load(self, epi):
         if self.type == 'ag':
