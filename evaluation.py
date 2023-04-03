@@ -21,19 +21,17 @@ batch_size = 1000
 capacity = 1_000_000
 episodes_before_train = 100
 
-n_episode = 100
-max_steps = 50
-
 maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
 maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
-maddpg_ag.load(47000), maddpg_adv.load(47000)
+maddpg_ag.load(48000), maddpg_adv.load(48000)
 
 eval_steps = 100
+max_steps = 50
 visualize = False
 
 eval_rwds = [0, 0]
-for _ in range(n_episode):
+for _ in range(eval_steps):
     obs = world_mpe.reset()
     obs = np.stack(obs)
     if isinstance(obs, np.ndarray):
