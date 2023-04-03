@@ -71,4 +71,4 @@ for _ in range(eval_steps):
     # print('Good Rewards: {:.1f} || Adversary Rewards: {}'.format(ag_rwd, adv_rwd))
 
 world_mpe.close()
-print('Good Rewards: {:.1f} || Adversary Rewards: {:.1f}'.format(eval_rwds[0] / n_episode, eval_rwds[1] / n_episode))
+print('Good Rewards: {:.1f} || Adversary Rewards: {:.1f}'.format(eval_rwds[0] / eval_steps, eval_rwds[1] / eval_steps))
