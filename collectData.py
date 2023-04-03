@@ -1,17 +1,16 @@
-import pickle
-
 import h5py
 import numpy as np
 import torch as th
 from tqdm import trange
 
+from MADDPG import MADDPG
 from madrl_environments.multiagent.make_env import make_env
 
 world_mpe = make_env('simple_tag')
 world_mpe.discrete_action_space = False
 
-np.random.seed(1234)
-th.manual_seed(1234)
+np.random.seed(42)
+th.manual_seed(42)
 
 n_ag = 2
 n_adv = 4
@@ -20,19 +19,14 @@ n_actions = 2
 capacity = 1000000
 batch_size = 1000
 
-n_episode = 10000
+n_episode = 100_000
 max_steps = 50
 episodes_before_train = 100
 
-with open('ag_1000.pkl', 'rb') as f:
-    maddpg_ag = pickle.load(f)
-with open('adv_1000.pkl', 'rb') as f:
-    maddpg_adv = pickle.load(f)
-
-# maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train)
-# maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train)
-
+maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
+maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
+maddpg_ag.load(48000), maddpg_adv.load(48000)
 
 # Dataset saving
 action_data_tot = []

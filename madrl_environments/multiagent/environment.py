@@ -246,11 +246,8 @@ class MultiAgentEnv(gym.Env):
                 for e, entity in enumerate(self.world.entities):
                     self.render_geoms_xform[e].set_translation(*entity.state.p_pos)
                 # render to display or array
-                results.append(self.viewers[i].render(return_rgb_array=mode == 'rgb_array'))
-
+                results.append(self.viewers[i].render(return_rgb_array=True))
             return results
-        else:
-            return None
 
     # create receptor field locations in local coordinate frame
     def _make_receptor_locations(self, agent):
