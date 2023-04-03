@@ -77,7 +77,7 @@ for i_episode in range(n_episode):
     maddpg_ag.episode_done += 1
     maddpg_adv.episode_done += 1
 
-    if w_plot:
+    if w_plot and (i_episode > episodes_before_train):
         wandb.log({'good reward': ag_rwd, 'adversary reward': adv_rwd,
                    'good critic loss': np.mean(ag_c_loss), 'good actor loss': np.mean(ag_a_loss),
                    'adv critic loss': np.mean(adv_c_loss), 'adv actor loss': np.mean(adv_a_loss)})
