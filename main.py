@@ -23,7 +23,7 @@ n_actions = 4 if discrete else 2
 capacity = 1_000_000
 batch_size = 1000
 
-n_episode = 100
+n_episode = 100_000
 max_steps = 50
 episodes_before_train = 100
 
@@ -32,7 +32,7 @@ maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_b
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
-w_plot = False
+w_plot = True
 if w_plot:
     wandb.init()
 
@@ -80,7 +80,7 @@ for i_episode in range(n_episode):
     if w_plot:
         wandb.log({'action_ag': ag_rwd, 'action_adv': adv_rwd})
 
-    if (i_episode + 1) % 10 == 0:
+    if (i_episode + 1) % 2000 == 0:
         maddpg_ag.save(i_episode + 1), maddpg_adv.save(i_episode + 1)
 
 world_mpe.close()
