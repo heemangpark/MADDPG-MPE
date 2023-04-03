@@ -5,16 +5,21 @@ import wandb
 from MADDPG import MADDPG
 from madrl_environments.multiagent.make_env import make_env
 
+np.random.seed(42)
+th.manual_seed(42)
+
+discrete = True
+
 world_mpe = make_env('simple_tag')
 world_mpe.discrete_action_space = False
 
-np.random.seed(42)
-th.manual_seed(42)
+if discrete:
+    world_mpe.discrete_action_space = True
 
 n_ag = 2
 n_adv = 4
 n_states = 28
-n_actions = 2
+n_actions = 4 if discrete else 2
 capacity = 1_000_000
 batch_size = 1000
 
@@ -22,9 +27,8 @@ n_episode = 100_000
 max_steps = 50
 episodes_before_train = 100
 
-maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
-maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
-maddpg_ag.load(28000), maddpg_adv.load(28000)
+maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag', discrete=discrete)
+maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv', discrete=discrete)
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
@@ -32,7 +36,7 @@ w_plot = True
 if w_plot:
     wandb.init()
 
-for i_episode in range(28000, n_episode):
+for i_episode in range(n_episode):
     obs = world_mpe.reset()
     obs = np.stack(obs)
     if isinstance(obs, np.ndarray):
@@ -76,7 +80,7 @@ for i_episode in range(28000, n_episode):
     if w_plot:
         wandb.log({'action_ag': ag_rwd, 'action_adv': adv_rwd})
 
-    if (i_episode + 1) % 1000 == 0:
+    if (i_episode + 1) % 2000 == 0:
         maddpg_ag.save(i_episode + 1), maddpg_adv.save(i_episode + 1)
 
 world_mpe.close()

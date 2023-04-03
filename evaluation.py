@@ -7,7 +7,8 @@ from MADDPG import MADDPG
 from madrl_environments.multiagent.make_env import make_env
 
 world_mpe = make_env('simple_tag')
-world_mpe.discrete_action_space = False
+world_mpe.discrete_action_input = True
+world_mpe.discrete_action_space = True
 
 np.random.seed(42)
 th.manual_seed(42)
@@ -24,7 +25,7 @@ episodes_before_train = 100
 maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
 maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
-maddpg_ag.load(48000), maddpg_adv.load(48000)
+maddpg_ag.load(50000), maddpg_adv.load(50000)
 
 eval_steps = 100
 max_steps = 50

@@ -1,7 +1,7 @@
 import os
 
 curdir = os.getcwd()
-files = list(os.walk('models/41000~/'))[0][2]
+files = list(os.walk('models'))[0][2]
 
 for f in files:
     new = str()
@@ -10,4 +10,4 @@ for f in files:
     for l in left:
         new += l + '_'
     new += right
-    os.rename(os.path.join(curdir, 'models', '41000~', f), os.path.join(curdir, 'models', '41000~', new))
+    os.rename(os.path.join(curdir, 'models', f), os.path.join(curdir, 'models', new))

@@ -21,8 +21,9 @@ def hard_update(target, source):
 
 
 class MADDPG:
-    def __init__(self, n_agents, dim_obs, dim_act, batch_size, capacity, episodes_before_train, type):
-        self.actors = [Actor(dim_obs, dim_act) for i in range(n_agents)]
+    def __init__(self, n_agents, dim_obs, dim_act, batch_size, capacity, episodes_before_train, type, discrete=False):
+        self.discrete = discrete
+        self.actors = [Actor(dim_obs, dim_act, self.discrete) for i in range(n_agents)]
         self.critics = [Critic(n_agents, dim_obs, dim_act) for i in range(n_agents)]
         self.actors_target = deepcopy(self.actors)
         self.critics_target = deepcopy(self.critics)
@@ -135,39 +136,50 @@ class MADDPG:
         return c_loss, a_loss
 
     def select_action(self, state_batch):
-        # state_batch: n_agents x state_dim
-        actions = th.zeros(
-            self.n_agents,
-            self.n_actions)
-        FloatTensor = th.cuda.FloatTensor if self.use_cuda else th.FloatTensor
-        for i in range(self.n_agents):
-            sb = state_batch[i, :].detach()
-            act = self.actors[i](sb.unsqueeze(0)).squeeze()
+        if not self.discrete:
+            # state_batch: n_agents x state_dim
+            actions = th.zeros(
+                self.n_agents,
+                self.n_actions)
+            FloatTensor = th.cuda.FloatTensor if self.use_cuda else th.FloatTensor
+            for i in range(self.n_agents):
+                sb = state_batch[i, :].detach()
+                act = self.actors[i](sb.unsqueeze(0)).squeeze()
 
-            act += th.from_numpy(
-                np.random.randn(2) * self.var[i]).type(FloatTensor)
+                act += th.from_numpy(
+                    np.random.randn(2) * self.var[i]).type(FloatTensor)
 
-            if self.episode_done > self.episodes_before_train and \
-                    self.var[i] > 0.05:
-                self.var[i] *= 0.999998
-            act = th.clamp(act, -1.0, 1.0)
+                if self.episode_done > self.episodes_before_train and \
+                        self.var[i] > 0.05:
+                    self.var[i] *= 0.999998
+                act = th.clamp(act, -1.0, 1.0)
 
-            actions[i, :] = act
-        self.steps_done += 1
+                actions[i, :] = act
+            self.steps_done += 1
 
-        return actions
+            return actions
+
+        else:
+            actions = th.zeros(self.n_agents)
+            for i in range(self.n_agents):
+                sb = state_batch[i, :].detach()
+                act = self.actors[i](sb.unsqueeze(0))
+                actions[i] = act
+            self.steps_done += 1
+
+            return actions
 
     def save(self, epi):
         if self.type == 'ag':
-            th.save([actors.state_dict() for actors in self.actors], 'models/ag_actor_{}.pt'.format(epi))
-            th.save([critics.state_dict() for critics in self.critics], 'models/ag_critic_{}.pt'.format(epi))
-            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/ag_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/ag_c_optim_{}.pt'.format(epi))
+            th.save([actors.state_dict() for actors in self.actors], 'models/discrete/ag_actor_{}.pt'.format(epi))
+            th.save([critics.state_dict() for critics in self.critics], 'models/discrete/ag_critic_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/discrete/ag_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/discrete/ag_c_optim_{}.pt'.format(epi))
         elif self.type == 'adv':
-            th.save([actors.state_dict() for actors in self.actors], 'models/adv_actor_{}.pt'.format(epi))
-            th.save([critics.state_dict() for critics in self.critics], 'models/adv_critic_{}.pt'.format(epi))
-            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/adv_a_optim_{}.pt'.format(epi))
-            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/adv_c_optim_{}.pt'.format(epi))
+            th.save([actors.state_dict() for actors in self.actors], 'models/discrete/adv_actor_{}.pt'.format(epi))
+            th.save([critics.state_dict() for critics in self.critics], 'models/discrete/adv_critic_{}.pt'.format(epi))
+            th.save([a_optim.state_dict() for a_optim in self.actor_optimizer], 'models/discrete/adv_a_optim_{}.pt'.format(epi))
+            th.save([c_optim.state_dict() for c_optim in self.critic_optimizer], 'models/discrete/adv_c_optim_{}.pt'.format(epi))
 
     def load(self, epi):
         if self.type == 'ag':
