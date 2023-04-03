@@ -11,10 +11,10 @@ th.manual_seed(42)
 discrete = True
 
 world_mpe = make_env('simple_tag')
-world_mpe.discrete_action_space = False
+world_mpe.discrete_action_input = False
 
 if discrete:
-    world_mpe.discrete_action_space = True
+    world_mpe.discrete_action_input = True
 
 n_ag = 2
 n_adv = 4
