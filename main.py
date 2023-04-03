@@ -32,7 +32,7 @@ maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_b
 
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
 
-w_plot = True
+w_plot = False
 if w_plot:
     wandb.init()
 
@@ -78,9 +78,13 @@ for i_episode in range(n_episode):
     maddpg_adv.episode_done += 1
 
     if w_plot and (i_episode > episodes_before_train):
+        agcl = th.mean(th.stack(ag_c_loss).detach()).item()
+        agal = th.mean(th.stack(ag_a_loss).detach()).item()
+        advcl = th.mean(th.stack(adv_c_loss).detach()).item()
+        adval = th.mean(th.stack(adv_a_loss).detach()).item()
         wandb.log({'good reward': ag_rwd, 'adversary reward': adv_rwd,
-                   'good critic loss': np.mean(ag_c_loss), 'good actor loss': np.mean(ag_a_loss),
-                   'adv critic loss': np.mean(adv_c_loss), 'adv actor loss': np.mean(adv_a_loss)})
+                   'good critic loss': agcl, 'good actor loss': agal,
+                   'adv critic loss': advcl, 'adv actor loss': adval})
 
     if (i_episode + 1) % 2000 == 0:
         maddpg_ag.save(i_episode + 1), maddpg_adv.save(i_episode + 1)
