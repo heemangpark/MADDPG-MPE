@@ -6,30 +6,34 @@ import torch as th
 from MADDPG import MADDPG
 from madrl_environments.multiagent.make_env import make_env
 
-world_mpe = make_env('simple_tag')
-world_mpe.discrete_action_input = True
-world_mpe.discrete_action_space = True
-
 np.random.seed(42)
 th.manual_seed(42)
+
+discrete = True
+
+world_mpe = make_env('simple_tag')
+world_mpe.discrete_action_input = False
+
+if discrete:
+    world_mpe.discrete_action_input = True
 
 n_ag = 2
 n_adv = 4
 n_states = 28
-n_actions = 2
+n_actions = 4 if discrete else 2
 
 batch_size = 1000
 capacity = 1_000_000
 episodes_before_train = 100
 
-maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag')
-maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv')
+maddpg_ag = MADDPG(n_ag, n_states, n_actions, batch_size, capacity, episodes_before_train, 'ag', discrete=discrete)
+maddpg_adv = MADDPG(n_adv, n_states, n_actions, batch_size, capacity, episodes_before_train, 'adv', discrete=discrete)
 FloatTensor = th.cuda.FloatTensor if maddpg_ag.use_cuda else th.FloatTensor
-maddpg_ag.load(50000), maddpg_adv.load(50000)
+maddpg_ag.load(100), maddpg_adv.load(100)
 
 eval_steps = 100
 max_steps = 50
-visualize = False
+visualize = True
 
 eval_rwds = [0, 0]
 for _ in range(eval_steps):
